@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>C++ Server Document Renderer & Live Preview</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- KaTeX for realistic client-side display of server-processed LaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Custom scrollbar for editor and preview */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Anti-select & Anti-copy simulated class */
+    .protected-content {
+      user-select: none !important;
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans overflow-hidden select-none bg-slate-950">
+
+  <!-- Header / Navigation Bar -->
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between shadow-md flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="bg-gradient-to-tr from-cyan-500 to-blue-600 p-2 rounded-lg shadow-lg">
+        <i class="fa-solid fa-server text-white text-lg"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-slate-100 text-lg leading-tight">C++ IXWebSocket Document Server Sandbox</h1>
+        <p class="text-xs text-slate-400">Server-Side HTML Generation • Port 9002 • Native SVG Charts • WebSocket Sync (Port 9003)</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <div id="statusBadge" class="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-semibold">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>WebSocket Live Sync Active</span>
+      </div>
+      <button id="resetDemoBtn" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-md text-xs font-medium transition flex items-center gap-2">
+        <i class="fa-solid fa-rotate-left"></i> Reset Template
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace (Split View) -->
+  <main class="flex-1 flex flex-col md:flex-row overflow-hidden p-4 gap-4">
+
+    <!-- Left Column: Markup File Editor -->
+    <section class="w-full md:w-1/2 flex flex-col bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+      <!-- Editor Toolbar -->
+      <div class="bg-slate-950/80 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+        <div class="flex items-center gap-2">
+          <i class="fa-regular fa-file-lines text-cyan-400"></i>
+          <span class="font-mono text-slate-200">/documents/research/report_v1.txt</span>
+          <span class="text-slate-600">|</span>
+          <span id="fileSize" class="text-slate-500">0 B</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+          <span class="text-cyan-400 font-mono text-[11px]">Auto-Saving...</span>
+        </div>
+      </div>
+
+      <!-- Quick Insert Buttons -->
+      <div class="bg-slate-900/90 px-3 py-1.5 border-b border-slate-800/80 flex flex-wrap gap-1.5 text-xs">
+        <button onclick="insertTag('[TEXT]\n')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">
+          + [TEXT]
+        </button>
+        <button onclick="insertTag('[DIAGRAM:architecture_diagram.png]\n')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">
+          + [DIAGRAM]
+        </button>
+        <button onclick="insertTag('[MATH]\nE = mc^2\n')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">
+          + [MATH]
+        </button>
+        <button onclick="insertTag('[GRAPH]\nMonth,Sales,Target\nJan,120,100\nFeb,190,130\nMar,250,200\n')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">
+          + [GRAPH]
+        </button>
+      </div>
+
+      <!-- Text Editor Area -->
+      <div class="flex-1 relative">
+        <textarea id="editor" class="w-full h-full p-4 bg-slate-950 text-slate-200 font-mono text-sm leading-relaxed outline-none resize-none selection:bg-cyan-900 selection:text-cyan-100" spellcheck="false"></textarea>
+      </div>
+      
+      <!-- Editor Status Bar -->
+      <div class="bg-slate-950 px-4 py-2 border-t border-slate-800/80 text-xs text-slate-500 flex justify-between items-center font-mono">
+        <span>Encoding: UTF-8</span>
+        <span>Line Delimiters: CRLF/LF</span>
+      </div>
+    </section>
+
+    <!-- Right Column: Simulated Server Browser Output -->
+    <section class="w-full md:w-1/2 flex flex-col bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+      
+      <!-- Simulated Browser Bar -->
+      <div class="bg-slate-950 px-4 py-2.5 border-b border-slate-800 flex items-center gap-3">
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded-full bg-rose-500/80 inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-amber-500/80 inline-block"></span>
+          <span class="w-3 h-3 rounded-full bg-emerald-500/80 inline-block"></span>
+        </div>
+        <div class="flex-1 flex items-center bg-slate-900 border border-slate-800 rounded-md px-3 py-1 text-xs text-slate-400 font-mono">
+          <i class="fa-solid fa-lock text-emerald-400 text-[10px] mr-2"></i>
+          <span class="text-slate-300">http://localhost:9002/view/research/report_v1.txt</span>
+        </div>
+        <button id="manualRefreshBtn" title="Simulate Manual Page Refresh (F5)" class="text-slate-400 hover:text-slate-200 transition">
+          <i class="fa-solid fa-arrows-rotate text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Security Notice Banner -->
+      <div class="bg-amber-500/10 border-b border-amber-500/20 px-4 py-1.5 flex items-center justify-between text-xs text-amber-300">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-shield-halved text-amber-400"></i>
+          <span>Anti-Highlighting & Copy Protection Active (Selection, Right-Click, and Drag Disabled)</span>
+        </div>
+        <span class="text-[10px] bg-amber-500/20 px-1.5 py-0.5 rounded text-amber-200 font-mono">Server Policy</span>
+      </div>
+
+      <!-- Server Rendered Container -->
+      <div id="browserViewport" class="flex-1 bg-white overflow-y-auto p-8 protected-content relative">
+        <div id="renderOutput" class="max-w-3xl mx-auto space-y-6 text-slate-900">
+          <!-- Server side rendered html content will be injected here -->
+        </div>
+      </div>
+
+      <!-- Server Engine Telemetry -->
+      <div class="bg-slate-950 border-t border-slate-800 px-4 py-2 text-xs text-slate-400 flex items-center justify-between font-mono">
+        <div class="flex items-center gap-4">
+          <span class="text-emerald-400"><i class="fa-solid fa-bolt mr-1"></i> Render Time: <span id="renderTime">1.2</span>ms</span>
+          <span>Blocks Parsed: <span id="blockCount" class="text-slate-200">0</span></span>
+        </div>
+        <span>Backend Engine: C++ / IXWebSocket</span>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Anti-Copy Protection Notification Toast -->
+  <div id="securityToast" class="fixed bottom-6 right-6 bg-rose-900/90 border border-rose-500/50 text-rose-100 px-4 py-3 rounded-lg shadow-2xl backdrop-blur transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3 z-50">
+    <div class="p-2 bg-rose-500/20 rounded-full">
+      <i class="fa-solid fa-ban text-rose-400 text-lg"></i>
+    </div>
+    <div>
+      <h4 class="font-bold text-sm">Action Restricted</h4>
+      <p class="text-xs text-rose-200">Text selection, copying, and download highlighting are disabled by server policy.</p>
+    </div>
+  </div>
+
+  <!-- JavaScript Parser & App Logic -->
+  <script>
+    // Initial Document Content
+    const DEFAULT_DOCUMENT = `[TEXT]
+# High-Performance Physics Simulation Data
+Welcome to the real-time C++ server render view. This document is parsed from server disk files on port 9002 upon every HTTP request or WebSocket update. All content elements are generated completely server-side.
+
+[DIAGRAM:system_architecture.svg]
+
+[TEXT]
+Below is the theoretical fluid dynamics wave equation parsed directly from LaTeX markup format in the source text file:
+
+[MATH]
+\\frac{\\partial^2 \\psi}{\\partial t^2} = c^2 \\nabla^2 \\psi + \\int_{0}^{\\infty} \\Phi(k) e^{i k x} dk
+
+[TEXT]
+The table below represents physical telemetry readings recorded during testing runs over several iteration cycles:
+
+[GRAPH]
+Cycle,Velocity,Pressure,Temperature
+10,120,45,300
+20,240,85,315
+30,310,110,340
+40,400,160,390
+50,520,210,420
+60,610,235,460
+
+[TEXT]
+Notice how the server transforms raw structured graph data tables into fully native backend SVG vector line charts, while enforcing strict content protection rules!`;
+
+    const editor = document.getElementById('editor');
+    const renderOutput = document.getElementById('renderOutput');
+    const fileSize = document.getElementById('fileSize');
+    const renderTime = document.getElementById('renderTime');
+    const blockCount = document.getElementById('blockCount');
+    const browserViewport = document.getElementById('browserViewport');
+    const securityToast = document.getElementById('securityToast');
+
+    // Initialize Editor
+    editor.value = DEFAULT_DOCUMENT;
+
+    // Helper to insert tags
+    function insertTag(tagText) {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const text = editor.value;
+      editor.value = text.substring(0, start) + tagText + text.substring(end);
+      editor.focus();
+      editor.selectionStart = editor.selectionEnd = start + tagText.length;
+      triggerServerParse();
+    }
+
+    // Convert raw document text to blocks (Simulates DocumentParser C++ class)
+    function parseDocument(text) {
+      const lines = text.split('\n');
+      const blocks = [];
+      let currentType = 'TEXT';
+      let currentContent = [];
+      let currentMetadata = '';
+
+      function flush() {
+        if (currentContent.length > 0 || currentMetadata || currentType === 'GRAPH') {
+          blocks.push({
+            type: currentType,
+            content: currentContent.join('\n').trim(),
+            metadata: currentMetadata
+          });
+          currentContent = [];
+          currentMetadata = '';
+        }
+      }
+
+      for (let line of lines) {
+        if (line.startsWith('[TEXT]')) {
+          flush();
+          currentType = 'TEXT';
+        } else if (line.startsWith('[DIAGRAM:')) {
+          flush();
+          currentType = 'DIAGRAM';
+          currentMetadata = line.substring(9, line.indexOf(']'));
+        } else if (line.startsWith('[MATH]')) {
+          flush();
+          currentType = 'MATH';
+        } else if (line.startsWith('[GRAPH]')) {
+          flush();
+          currentType = 'GRAPH';
+        } else {
+          currentContent.push(line);
+        }
+      }
+      flush();
+      return blocks;
+    }
+
+    // Dynamic Native SVG Chart Generator (Simulates backend C++ SVG chart builder)
+    function generateBackendSvgChart(csvData) {
+      const lines = csvData.split('\n').filter(l => l.trim() !== '');
+      if (lines.length < 2) return '<div class="p-4 bg-rose-50 text-rose-600 rounded">Invalid graph data block</div>';
+
+      const headers = lines[0].split(',').map(s => s.trim());
+      const rows = lines.slice(1).map(l => l.split(',').map(s => parseFloat(s.trim())));
+
+      const xLabel = headers[0] || 'X';
+      const seriesLabels = headers.slice(1);
+
+      // Extract numeric values
+      const xVals = rows.map(r => r[0]);
+      const seriesData = seriesLabels.map((_, colIdx) => rows.map(r => r[colIdx + 1]));
+
+      // Chart Dimensions
+      const width = 650;
+      const height = 300;
+      const margin = { top: 30, right: 120, bottom: 40, left: 50 };
+      const chartWidth = width - margin.left - margin.right;
+      const chartHeight = height - margin.top - margin.bottom;
+
+      const minX = Math.min(...xVals);
+      const maxX = Math.max(...xVals);
+      const allYVals = seriesData.flat();
+      const minY = 0;
+      const maxY = Math.max(...allYVals) * 1.1 || 100;
+
+      function scaleX(val) {
+        return margin.left + ((val - minX) / (maxX - minX || 1)) * chartWidth;
+      }
+      function scaleY(val) {
+        return height - margin.bottom - ((val - minY) / (maxY - minY || 1)) * chartHeight;
+      }
+
+      const colors = ['#0284c7', '#16a34a', '#dc2626', '#9333ea', '#ea580c'];
+
+      // Build Gridlines and Y ticks
+      let yTicksSvg = '';
+      const tickCount = 5;
+      for (let i = 0; i <= tickCount; i++) {
+        const val = minY + (maxY - minY) * (i / tickCount);
+        const yPos = scaleY(val);
+        yTicksSvg += `
+          <line x1="${margin.left}" y1="${yPos}" x2="${width - margin.right}" y2="${yPos}" stroke="#e2e8f0" stroke-dasharray="4,4" />
+          <text x="${margin.left - 8}" y="${yPos + 4}" font-size="11" fill="#64748b" text-anchor="end" font-family="sans-serif">${Math.round(val)}</text>
+        `;
+      }
+
+      // Build X ticks
+      let xTicksSvg = '';
+      xVals.forEach(val => {
+        const xPos = scaleX(val);
+        xTicksSvg += `
+          <line x1="${xPos}" y1="${height - margin.bottom}" x2="${xPos}" y2="${height - margin.bottom + 5}" stroke="#94a3b8" />
+          <text x="${xPos}" y="${height - margin.bottom + 20}" font-size="11" fill="#64748b" text-anchor="middle" font-family="sans-serif">${val}</text>
+        `;
+      });
+
+      // Build Data Lines and Plot Points
+      let linesSvg = '';
+      let legendSvg = '';
+
+      seriesData.forEach((data, seriesIdx) => {
+        const color = colors[seriesIdx % colors.length];
+        const points = data.map((d, i) => `${scaleX(xVals[i])},${scaleY(d)}`).join(' ');
+
+        // Path line
+        linesSvg += `<polyline fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${points}" />`;
+
+        // Points
+        data.forEach((d, i) => {
+          linesSvg += `<circle cx="${scaleX(xVals[i])}" cy="${scaleY(d)}" r="4" fill="#ffffff" stroke="${color}" stroke-width="2.5" />`;
+        });
+
+        // Legend item
+        const legendY = margin.top + seriesIdx * 24;
+        legendSvg += `
+          <g transform="translate(${width - margin.right + 15}, ${legendY})">
+            <rect width="12" height="12" rx="3" fill="${color}" />
+            <text x="20" y="10" font-size="12" font-family="sans-serif" fill="#334155" font-weight="500">${seriesLabels[seriesIdx]}</text>
+          </g>
+        `;
+      });
+
+      return `
+        <div class="my-6 p-4 bg-slate-50 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span><i class="fa-solid fa-chart-line mr-1 text-sky-600"></i> Backend SVG Line Chart</span>
+            <span class="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded">Server-Rendered</span>
+          </div>
+          <div class="overflow-x-auto flex justify-center">
+            <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" class="max-w-full h-auto">
+              <!-- Background -->
+              <rect width="100%" height="100%" fill="#fafafa" rx="8"/>
+              <!-- Axes -->
+              <line x1="${margin.left}" y1="${height - margin.bottom}" x2="${width - margin.right}" y2="${height - margin.bottom}" stroke="#64748b" stroke-width="1.5" />
+              <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${height - margin.bottom}" stroke="#64748b" stroke-width="1.5" />
+              <!-- Ticks & Grid -->
+              ${yTicksSvg}
+              ${xTicksSvg}
+              <!-- Lines & Circles -->
+              ${linesSvg}
+              <!-- Legend -->
+              ${legendSvg}
+            </svg>
+          </div>
+        </div>
+      `;
+    }
+
+    // Server-side HTML Renderer Simulation (HtmlRenderer C++ Class)
+    function renderServerHtml(blocks) {
+      const startTime = performance.now();
+      let html = '';
+
+      blocks.forEach(block => {
+        switch (block.type) {
+          case 'TEXT':
+            if (block.content) {
+              // Simple markdown header parsing
+              let textContent = block.content;
+              if (textContent.startsWith('# ')) {
+                html += `<h1 class="text-2xl font-bold text-slate-900 border-b border-slate-200 pb-2 mb-4">${escapeHtml(textContent.substring(2))}</h1>`;
+              } else {
+                html += `<p class="text-slate-700 leading-relaxed my-3">${escapeHtml(textContent)}</p>`;
+              }
+            }
+            break;
+
+          case 'DIAGRAM':
+            html += `
+              <div class="my-6 p-6 bg-slate-100 rounded-xl border border-slate-200 text-center">
+                <div class="inline-flex items-center justify-center p-4 bg-sky-100 text-sky-600 rounded-full mb-3">
+                  <i class="fa-solid fa-diagram-project text-3xl"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-sm mb-1">Diagram Asset Placeholder</h3>
+                <p class="font-mono text-xs text-slate-500">Path: /documents/research/${escapeHtml(block.metadata)}</p>
+                <div class="mt-4 border-2 border-dashed border-slate-300 rounded-lg p-6 bg-white text-slate-400 text-xs flex flex-col items-center gap-2">
+                  <i class="fa-regular fa-image text-2xl text-slate-300"></i>
+                  <span>[Image binary served via server route with non-downloadable headers]</span>
+                </div>
+              </div>
+            `;
+            break;
+
+          case 'MATH':
+            html += `
+              <div class="my-6 p-4 bg-slate-50 border-l-4 border-slate-800 rounded-r-lg text-center overflow-x-auto">
+                <div class="math-container text-slate-900 text-lg" data-formula="${escapeHtml(block.content)}">
+                  \\[${block.content}\\]
+                </div>
+              </div>
+            `;
+            break;
+
+          case 'GRAPH':
+            html += generateBackendSvgChart(block.content);
+            break;
+        }
+      });
+
+      const endTime = performance.now();
+      renderTime.innerText = (endTime - startTime).toFixed(2);
+      blockCount.innerText = blocks.length;
+
+      return html;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    // Primary Render Loop
+    function triggerServerParse() {
+      const text = editor.value;
+      fileSize.innerText = new Blob([text]).size + ' B';
+
+      const blocks = parseDocument(text);
+      const renderedHtml = renderServerHtml(blocks);
+
+      renderOutput.innerHTML = renderedHtml;
+
+      // Render KaTeX for formulas
+      document.querySelectorAll('.math-container').forEach(el => {
+        const formula = el.getAttribute('data-formula');
+        if (formula && window.katex) {
+          try {
+            katex.render(formula, el, { displayMode: true, throwOnError: false });
+          } catch (e) {
+            el.innerText = formula;
+          }
+        }
+      });
+    }
+
+    // Debounced Live Reload Trigger
+    let timeoutId = null;
+    editor.addEventListener('input', () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        triggerServerParse();
+      }, 150);
+    });
+
+    // Reset Demo Template
+    document.getElementById('resetDemoBtn').addEventListener('click', () => {
+      editor.value = DEFAULT_DOCUMENT;
+      triggerServerParse();
+    });
+
+    // Manual Refresh Simulation
+    document.getElementById('manualRefreshBtn').addEventListener('click', () => {
+      renderOutput.style.opacity = '0.3';
+      setTimeout(() => {
+        triggerServerParse();
+        renderOutput.style.opacity = '1';
+      }, 200);
+    });
+
+    // Security Anti-Copy Event Prevention Implementation
+    function showSecurityToast() {
+      securityToast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        securityToast.classList.add('translate-y-20', 'opacity-0');
+      }, 2500);
+    }
+
+    browserViewport.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showSecurityToast();
+    });
+
+    browserViewport.addEventListener('copy', (e) => {
+      e.preventDefault();
+      showSecurityToast();
+    });
+
+    browserViewport.addEventListener('dragstart', (e) => {
+      e.preventDefault();
+      showSecurityToast();
+    });
+
+    browserViewport.addEventListener('selectstart', (e) => {
+      e.preventDefault();
+      showSecurityToast();
+    });
+
+    // Initial render call
+    triggerServerParse();
+  </script>
+</body>
+</html> 
+
