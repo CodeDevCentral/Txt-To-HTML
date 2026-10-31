@@ -14,21 +14,19 @@ For the C++/IxWebSocket server code for the renderer, show only code line change
 
 Create a basic corporate style webpage template for software developer company in light color themes for displaying documents for the source text file as HTML with delimiters for document title, document headers/subheaders, and text captions in small font below photos, diagrams and graphs, and text explaining variables below each formula. Show only code lines modified/changes in the C++/IxWebSocket code file. 
 
-
-
-# 1. Create a build directory 
+Create a build directory 
 
 mkdir build && cd build
 
-# 2. Generate build files with CMake
+Generate build files with CMake
 
 cmake ..
 
-# 3. Compile the application
+Compile the application
 
 cmake --build . --config Release
 
-# 4. Create the document root directory and run the server
+Create the document root directory and run the server
 
 cd ../
 mkdir -p documents
