@@ -43,5 +43,7 @@ Cycle,Velocity,Pressure,Temperature
 60,610,235,460
 
 [TEXT]
-Notice how the server transforms raw structured graph data tables into fully native backend SVG vector line charts, while enforcing strict content protection rules! 
+Notice how the server transforms raw structured graph data tables into fully native 
+- backend SVG vector line charts, while 
+- enforcing strict content protection rules! 
 
