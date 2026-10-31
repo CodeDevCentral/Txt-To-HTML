@@ -9,6 +9,12 @@ This is a standard informational text paragraph rendered on the server side. Use
 [MATH]
 \int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
 
+[TABLE]
+X,Y,Series
+1,10,A
+2,25,A
+3,40,A 
+
 [GRAPH]
 X,Y,Series
 1,10,A
@@ -32,6 +38,15 @@ Below is the theoretical fluid dynamics wave equation parsed directly from LaTeX
 
 [TEXT]
 The table below represents physical telemetry readings recorded during testing runs over several iteration cycles:
+
+[TABLE]
+Cycle,Velocity,Pressure,Temperature
+10,120,45,300
+20,240,85,315
+30,310,110,340
+40,400,160,390
+50,520,210,420
+60,610,235,460
 
 [GRAPH]
 Cycle,Velocity,Pressure,Temperature
